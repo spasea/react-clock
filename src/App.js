@@ -27,11 +27,19 @@ class App extends Component {
     document.documentElement.style.setProperty(property, `${angle}deg`)
   }
 
+  saveState = (newState, cb = () => '') => {
+    this.setState(newState, () => {
+      cb()
+
+      localStorage.setItem('state', JSON.stringify(this.state))
+    })
+  }
+
   generateRandomTime = () => {
     const hours = this.getRandomInt(1, 12)
     const minutes = this.getRandomInt(0, 59)
 
-    this.setState({
+    this.saveState({
       hours,
       minutes
     }, this.updateTime)
@@ -51,13 +59,13 @@ class App extends Component {
   }
 
   handleHours = e => {
-    this.setState({
+    this.saveState({
       hours: e.target.value
     }, this.updateTime)
   }
 
   handleMinutes = e => {
-    this.setState({
+    this.saveState({
       minutes: e.target.value
     }, this.updateTime)
   }
@@ -65,12 +73,15 @@ class App extends Component {
   handleSize = e => {
     const size = e.target.value
 
-    this.setState({
+    this.saveState({
       size
     }, () => {
-      document.documentElement.style.setProperty('--clock-size', `${size}px`)
+
+      this.updateSize(size)
     })
   }
+
+  updateSize = size => document.documentElement.style.setProperty('--clock-size', `${size}px`)
 
   savePreset = () => {
     const {
@@ -79,7 +90,7 @@ class App extends Component {
       presets,
     } = this.state
 
-    this.setState({
+    this.saveState({
       presets: [
         ...presets.filter(preset => preset.id !== `${hours}:${minutes}`),
         {
@@ -102,14 +113,35 @@ class App extends Component {
       return
     }
 
-    this.setState({
+    this.saveState({
       hours: preset.hours,
       minutes: preset.minutes
     }, this.updateTime)
   }
 
+  removePreset = id => {
+    const {
+      presets,
+    } = this.state
+
+    this.saveState({
+      presets: presets.filter(preset => preset.id !== id)
+    })
+  }
+
   componentDidMount() {
-    this.generateRandomTime()
+    const state = localStorage.getItem('state')
+
+    if (!state) {
+      this.generateRandomTime()
+
+      return
+    }
+
+    this.setState(JSON.parse(state), () => {
+      this.updateTime()
+      this.updateSize(this.state.size)
+    })
   }
 
   render() {
@@ -148,9 +180,12 @@ class App extends Component {
         <div className="input-wrapper">
           {
             presets.map(preset =>
-              <div key={preset.id}>
-                { JSON.stringify({ hours: preset.hours, minutes: preset.minutes }) }
+              <div className="time-preset" key={preset.id}>
+                hours: {preset.hours};
+                minutes: {preset.minutes}
+
                 <button onClick={() => this.applyPreset(preset.id)}>Apply</button>
+                <button onClick={() => this.removePreset(preset.id)}>Remove</button>
               </div>
             )
           }
